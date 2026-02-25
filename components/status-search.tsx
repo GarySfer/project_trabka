@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Search, Loader2 } from "lucide-react";
+import { Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -21,8 +21,6 @@ import {
   getStatusCategory,
   HTTP_STATUS_DESCRIPTIONS,
   isValidHttpStatusCode,
-  isClientError,
-  isServerError,
 } from "@/types/http-status";
 
 interface StatusSearchProps {
@@ -31,9 +29,7 @@ interface StatusSearchProps {
 
 export function StatusSearch({ onSearch }: StatusSearchProps) {
   const [result, setResult] = useState<HttpStatusInfo | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
-  const abortRef = useRef<AbortController | null>(null);
 
   const form = useForm<SearchFormValues>({
     resolver: zodResolver(searchSchema),
@@ -42,7 +38,7 @@ export function StatusSearch({ onSearch }: StatusSearchProps) {
     },
   });
 
-  async function onSubmit(values: SearchFormValues) {
+  function onSubmit(values: SearchFormValues) {
     const codeNum = parseInt(values.code, 10);
 
     if (!isValidHttpStatusCode(codeNum)) {
@@ -50,61 +46,23 @@ export function StatusSearch({ onSearch }: StatusSearchProps) {
       return;
     }
 
-    // Abort previous request
-    if (abortRef.current) {
-      abortRef.current.abort();
-    }
-    abortRef.current = new AbortController();
-
-    setIsLoading(true);
     setFetchError(null);
     setResult(null);
 
-    try {
-      const imageUrl = `https://http.cat/${codeNum}.jpg`;
+    const imageUrl = `https://http.cat/${codeNum}.jpg`;
+    const category = getStatusCategory(codeNum);
+    const description =
+      HTTP_STATUS_DESCRIPTIONS[codeNum] ?? `Unknown status ${codeNum}`;
 
-      // Check if image exists
-      const response = await fetch(imageUrl, {
-        method: "HEAD",
-        signal: abortRef.current.signal,
-      });
+    const statusInfo: HttpStatusInfo = {
+      code: codeNum,
+      description,
+      category,
+      imageUrl,
+    };
 
-      if (!response.ok) {
-        throw new Error(`HTTP cat image not found for code ${codeNum}`);
-      }
-
-      const category = getStatusCategory(codeNum);
-      const description =
-        HTTP_STATUS_DESCRIPTIONS[codeNum] ?? `Unknown status ${codeNum}`;
-
-      const statusInfo: HttpStatusInfo = {
-        code: codeNum,
-        description,
-        category,
-        imageUrl,
-      };
-
-      setResult(statusInfo);
-      onSearch(codeNum);
-
-      // Extra info for 4xx/5xx
-      if (isClientError(codeNum)) {
-        // Client error specific handling available
-      } else if (isServerError(codeNum)) {
-        // Server error specific handling available
-      }
-    } catch (error) {
-      if (error instanceof DOMException && error.name === "AbortError") {
-        return;
-      }
-      setFetchError(
-        error instanceof Error
-          ? error.message
-          : "Failed to fetch HTTP cat image"
-      );
-    } finally {
-      setIsLoading(false);
-    }
+    setResult(statusInfo);
+    onSearch(codeNum);
   }
 
   return (
@@ -134,14 +92,9 @@ export function StatusSearch({ onSearch }: StatusSearchProps) {
           />
           <Button
             type="submit"
-            disabled={isLoading}
             className="gap-2"
           >
-            {isLoading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Search className="h-4 w-4" />
-            )}
+            <Search className="h-4 w-4" />
             Search
           </Button>
         </form>
@@ -153,9 +106,7 @@ export function StatusSearch({ onSearch }: StatusSearchProps) {
         </div>
       )}
 
-      {isLoading && <HttpCard.Skeleton />}
-
-      {result && !isLoading && (
+      {result && (
         <div className="animate-fade-in-up">
           <HttpCard
             code={result.code}
