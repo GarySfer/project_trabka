@@ -56,7 +56,6 @@ export const multiStepFormSchema = z
       .string()
       .min(3, "Description must be at least 3 characters")
       .max(200, "Description must be at most 200 characters"),
-    recaptchaToken: z.string().min(1, "Please complete the reCAPTCHA"),
   })
   .refine(
     (data) => {

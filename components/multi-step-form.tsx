@@ -1,9 +1,8 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import ReCAPTCHA from "react-google-recaptcha";
 import { ChevronLeft, ChevronRight, Check, Loader2, User, Code, ClipboardCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,8 +28,6 @@ import { HttpCodeSelect } from "@/components/http-code-select";
 import { multiStepFormSchema, type MultiStepFormValues } from "@/lib/schemas";
 import { cn } from "@/lib/utils";
 
-const RECAPTCHA_SITE_KEY = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY || "6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI";
-
 const steps = [
   { id: 1, title: "Personal Info", icon: User },
   { id: 2, title: "HTTP Status", icon: Code },
@@ -41,7 +38,6 @@ export function MultiStepForm() {
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [showDialog, setShowDialog] = useState<boolean>(false);
-  const recaptchaRef = useRef<ReCAPTCHA>(null);
 
   const form = useForm<MultiStepFormValues>({
     resolver: zodResolver(multiStepFormSchema),
@@ -50,7 +46,6 @@ export function MultiStepForm() {
       email: "",
       httpCode: "",
       description: "",
-      recaptchaToken: "",
     },
     mode: "onChange",
   });
@@ -78,10 +73,6 @@ export function MultiStepForm() {
     setCurrentStep((prev) => Math.max(prev - 1, 1));
   }
 
-  function handleRecaptchaChange(token: string | null) {
-    setValue("recaptchaToken", token ?? "", { shouldValidate: true });
-  }
-
   async function onSubmit(data: MultiStepFormValues) {
     setIsSubmitting(true);
 
@@ -96,9 +87,6 @@ export function MultiStepForm() {
     form.reset();
     setCurrentStep(1);
     setShowDialog(false);
-    if (recaptchaRef.current) {
-      recaptchaRef.current.reset();
-    }
   }
 
   return (
@@ -272,19 +260,7 @@ export function MultiStepForm() {
                     </dl>
                   </div>
 
-                  {/* reCAPTCHA */}
-                  <div className="flex flex-col gap-2">
-                    <ReCAPTCHA
-                      ref={recaptchaRef}
-                      sitekey={RECAPTCHA_SITE_KEY}
-                      onChange={handleRecaptchaChange}
-                    />
-                    {form.formState.errors.recaptchaToken && (
-                      <p className="text-sm text-destructive">
-                        {form.formState.errors.recaptchaToken.message}
-                      </p>
-                    )}
-                  </div>
+
                 </div>
               )}
 
@@ -313,7 +289,7 @@ export function MultiStepForm() {
                 ) : (
                   <Button
                     type="submit"
-                    disabled={isSubmitting || !watchedValues.recaptchaToken}
+                    disabled={isSubmitting}
                     className="gap-1.5"
                   >
                     {isSubmitting ? (
